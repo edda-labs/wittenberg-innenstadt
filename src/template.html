@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Lutherstadt Wittenberg – Innenstadt in 3D</title>
+<style>
+  :root{
+    --bg:#0d1319; --panel:rgba(16,23,31,.82); --line:rgba(255,255,255,.12);
+    --txt:#eef2f6; --dim:#9fb0c0; --acc:#e2b04a; --acc2:#7fb6d6;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+    font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif}
+  canvas#c{position:fixed;inset:0;display:block;touch-action:none}
+  header{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:14px 18px;z-index:20;pointer-events:none}
+  .brand{pointer-events:auto;display:flex;flex-direction:column;gap:2px;
+    background:linear-gradient(180deg,rgba(10,16,22,.85),rgba(10,16,22,.45));
+    padding:10px 16px;border-radius:14px;border:1px solid var(--line);backdrop-filter:blur(10px)}
+  .brand b{font-size:15px;letter-spacing:.02em;font-weight:650}
+  .brand span.sub{font-size:11.5px;color:var(--dim);letter-spacing:.04em;text-transform:uppercase}
+  nav{pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  button.nav{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:11px;
+    padding:9px 14px;font-size:13px;cursor:pointer;backdrop-filter:blur(10px);transition:.18s;font-weight:500}
+  button.nav:hover{border-color:rgba(255,255,255,.32);background:rgba(30,42,54,.9)}
+  button.nav.on{background:linear-gradient(180deg,#e8c168,#c9952c);color:#1a1305;border-color:#e8c168;font-weight:650}
+  button.cta{background:linear-gradient(180deg,#2e6f52,#1f4f3a);border:1px solid #3f8a68;color:#eafff4;
+    text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+  button.cta:hover{background:linear-gradient(180deg,#37855f,#245940)}
+  #panel{position:fixed;top:78px;right:18px;width:322px;max-height:calc(100vh - 170px);overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(14px);
+    z-index:25;display:none;padding:8px}
+  #panel.open{display:block}
+  #panel h3{margin:10px 12px 6px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  .lm{display:flex;gap:10px;align-items:center;padding:9px 12px;border-radius:10px;cursor:pointer;transition:.15s}
+  .lm:hover{background:rgba(255,255,255,.07)}
+  .lm .ic{width:9px;height:9px;border-radius:50%;background:var(--acc);flex:0 0 auto;
+    box-shadow:0 0 0 4px rgba(226,176,74,.16)}
+  .lm .tx{display:flex;flex-direction:column;min-width:0}
+  .lm .tx b{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lm .tx i{font-size:11px;color:var(--dim);font-style:normal}
+  #info{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    width:min(660px,calc(100vw - 36px));background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;backdrop-filter:blur(14px);padding:16px 18px;z-index:30;opacity:0;
+    pointer-events:none;transition:.25s}
+  #info.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  #info h2{margin:0 0 2px;font-size:17px;font-weight:650}
+  #info .meta{font-size:11.5px;color:var(--acc);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+  #info p{margin:0;font-size:13.4px;line-height:1.55;color:#d6dee6}
+  #info .row{display:flex;gap:8px;margin-top:12px}
+  #info button{background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--txt);
+    border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer}
+  #info button:hover{background:rgba(255,255,255,.16)}
+  #info .x{position:absolute;top:12px;right:14px;cursor:pointer;color:var(--dim);font-size:18px;line-height:1}
+  #hint{position:fixed;left:18px;bottom:18px;font-size:11.5px;color:var(--dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 13px;
+    backdrop-filter:blur(10px);z-index:20;max-width:min(46vw,430px);line-height:1.5}
+  #hint b{color:#dfe7ee;font-weight:600}
+  #map{position:fixed;right:18px;bottom:18px;width:168px;height:168px;border-radius:14px;
+    background:rgba(12,18,24,.8);border:1px solid var(--line);backdrop-filter:blur(8px);
+    z-index:20;overflow:hidden;cursor:crosshair}
+  #map canvas{width:100%;height:100%;display:block}
+  #map .nl{position:absolute;top:6px;left:8px;font-size:10px;color:var(--dim);letter-spacing:.12em}
+  #cross{position:fixed;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;z-index:15;
+    display:none;pointer-events:none}
+  #cross:before,#cross:after{content:"";position:absolute;background:rgba(255,255,255,.75)}
+  #cross:before{left:7px;top:0;width:2px;height:16px}
+  #cross:after{top:7px;left:0;height:2px;width:16px}
+  body.walk #cross{display:block}
+  body.walk #map{width:132px;height:132px}
+  #joy{position:fixed;left:22px;bottom:96px;width:118px;height:118px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);z-index:22;display:none;
+    backdrop-filter:blur(4px)}
+  body.walk.touch #joy{display:block}
+  #knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;
+    background:rgba(255,255,255,.32);border:1px solid rgba(255,255,255,.5)}
+  #load{position:fixed;inset:0;background:#0b1016;z-index:80;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;transition:.5s}
+  #load.done{opacity:0;pointer-events:none}
+  .spin{width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.15);
+    border-top-color:var(--acc);animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #load .t{font-size:13px;color:var(--dim);letter-spacing:.04em}
+  #progress{position:fixed;left:0;top:0;height:2px;background:var(--acc);width:0;z-index:90;transition:width .2s}
+  #tourbar{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:28;display:none;
+    gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px 14px;backdrop-filter:blur(12px);font-size:12.5px;color:var(--dim)}
+  #tourbar.show{display:flex}
+  #about{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);width:min(680px,calc(100vw - 32px));
+    max-height:82vh;overflow:auto;background:rgba(14,20,27,.96);border:1px solid var(--line);border-radius:18px;
+    padding:22px 24px;z-index:60;display:none;backdrop-filter:blur(16px);line-height:1.55}
+  #about.open{display:block}
+  #about h2{margin:0 0 12px;font-size:18px}
+  #about p{font-size:13.2px;color:#cdd6de;margin:0 0 10px}
+  #about b{color:#fff}
+  #about .x{position:absolute;top:14px;right:18px;cursor:pointer;color:var(--dim);font-size:20px}
+  #tourbar .bar{width:180px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
+  #tourbar .bar i{display:block;height:100%;width:0;background:var(--acc)}
+  @media (max-width:720px){
+    header{padding:10px;flex-direction:column;align-items:flex-start}
+    nav{gap:5px}button.nav{padding:8px 10px;font-size:11.5px}
+    #panel{right:10px;left:10px;width:auto;top:126px}
+    #hint{display:none}
+    .brand b{font-size:13px}.brand span.sub{font-size:10px}
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<canvas id="c"></canvas>
+
+<header>
+  <div class="brand">
+    <b>Lutherstadt Wittenberg · Innenstadt</b>
+    <span class="sub">3D-Modell · UNESCO-Welterbe · 1.600 Gebäude</span>
+  </div>
+  <nav>
+    <button class="nav on" data-mode="orbit">Rundflug</button>
+    <button class="nav" data-mode="walk">Street View</button>
+    <button class="nav" id="tourBtn">Rundgang</button>
+    <button class="nav" id="lmBtn">Denkmäler</button>
+    <button class="nav" id="aboutBtn">Über</button>
+    <button class="nav cta" id="stlBtn">STL ↓</button>
+  </nav>
+</header>
+
+<aside id="panel">
+  <h3>Denkmäler & Bauwerke</h3>
+  <div id="lmlist"></div>
+</aside>
+
+<div id="info">
+  <span class="x" id="infoX">×</span>
+  <h2 id="infoH">—</h2>
+  <div class="meta" id="infoM"></div>
+  <p id="infoP"></p>
+  <div class="row">
+    <button id="infoGo">Hingehen</button>
+    <button id="infoClose">Schließen</button>
+  </div>
+</div>
+
+<div id="hint"><b>Rundflug:</b> ziehen = drehen · Scrollen = zoomen · Denkmal anklicken = Info</div>
+<div id="cross"></div>
+<div id="map"><div class="nl">NORD</div><canvas id="mm" width="336" height="336"></canvas></div>
+<div id="joy"><div id="knob"></div></div>
+
+<div id="tourbar">
+  <span>Rundgang läuft</span>
+  <div class="bar"><i id="tourprog"></i></div>
+  <button class="nav" id="tourStop" style="padding:5px 10px;font-size:11.5px">Stopp</button>
+</div>
+
+<div id="about">
+  <span class="x" id="aboutX">×</span>
+  <h2>Über dieses Modell</h2>
+  <p><b>Datengrundlage</b> — Gebäudeumrisse, Straßen, Gewässer und Grünflächen aus OpenStreetMap (Geofabrik-Extrakt Sachsen-Anhalt, Stand Oktober 2026). 1.644 Gebäude im Ausschnitt von rund 1,56 × 1,08 km.</p>
+  <p><b>Höhen</b> — aus OSM-Tags (<i>height</i>, <i>building:levels</i>), sonst typologische Schätzung nach Gebäudetyp (meist 3–4 Geschosse). Turmhöhen nach Literatur: Schlosskirche 88 m, Stadtkirche St. Marien 60 m.</p>
+  <p><b>Dächer</b> — algorithmisch erzeugte Hüft- und Walmdächer. Die Dachlandschaft wirkt plausibel, ist aber nicht katastergenau.</p>
+  <p><b>Denkmäler</b> — Lutherdenkmal, Melanchthondenkmal, Cranachdenkmal, Bugenhagen- und Katharina-von-Bora-Statue, Marktbrunnen: als Podest mit Figur stark vereinfacht, keine bildhauerischen Details.</p>
+  <p><b>Grenzen</b> — Fassaden, Fenster und Baudetails sind stilisiert. Das Modell ist für Anschauung, Lehre und 3D-Druck gedacht, nicht für Vermessung.</p>
+  <p><b>3D-Druck (STL)</b> — Maßstab ca. 1:7 900, 204 × 143 × 12 mm inkl. 4 m (Modell) starker Grundplatte. Wasserdicht je Baukörper; Überschneidungen werden vom Slicer vereinigt. Empfehlung: 0,4-mm-Düse, 0,12 mm Schichthöhe, kein Support nötig.</p>
+  <p style="color:#9fb0c0;font-size:12px">Läuft komplett offline in einer Datei – Three.js ist eingebettet. Tastatur: WASD, Maus, Shift, ESC. Mobil: links Joystick, rechts umsehen.</p>
+</div>
+<div id="load">
+  <div class="spin"></div>
+  <div class="t" id="loadTxt">Modell wird geladen …</div>
+</div>
+
+<script id="payload" type="application/octet-stream">__PAYLOAD__</script>
+<script id="stl" type="application/octet-stream">__STL__</script>
+<script id="threejs" type="text/plain">__THREE__</script>
+<script type="module">
+const __b = atob(document.getElementById('threejs').textContent.trim());
+const __u8 = new Uint8Array(__b.length);
+for (let i=0;i<__b.length;i++) __u8[i] = __b.charCodeAt(i);
+const __src = new TextDecoder().decode(__u8);
+let THREE;
+try {
+  THREE = await import(URL.createObjectURL(new Blob([__src], {type:'text/javascript'})));
+} catch (e) {
+  document.getElementById('loadTxt').textContent = 'Fehler beim Starten der 3D-Engine: ' + e.message;
+  throw e;
+}
+
+/* ---------- Orbit-Steuerung (eigene, ohne Addon) ---------- */
+class SimpleOrbit {
+  constructor(cam, dom){
+    this.camera=cam; this.dom=dom; this.target=new THREE.Vector3();
+    this.enabled=true; this.autoRotate=false; this.autoRotateSpeed=0.10;
+    this.enableDamping=true; this.dampingFactor=0.82;
+    this.minDistance=40; this.maxDistance=2600; this.maxPolarAngle=Math.PI*0.495;
+    this._dTheta=0; this._dPhi=0; this._zoom=1;
+    this._ptr=null; this._last=null; this._pinch=0;
+    const d=dom;
+    d.addEventListener('pointerdown', e=>{
+      if(!this.enabled) return;
+      this._ptr=e.pointerId; this._last={x:e.clientX,y:e.clientY};
+    });
+    d.addEventListener('pointerup', e=>{ if(e.pointerId===this._ptr){ this._ptr=null; this._last=null; } });
+    d.addEventListener('pointercancel', e=>{ if(e.pointerId===this._ptr){ this._ptr=null; this._last=null; } });
+    d.addEventListener('pointermove', e=>{
+      if(!this.enabled || e.pointerId!==this._ptr || !this._last) return;
+      const dx=e.clientX-this._last.x, dy=e.clientY-this._last.y;
+      this._last={x:e.clientX,y:e.clientY};
+      this._dTheta -= dx*0.0042; this._dPhi -= dy*0.0042;
+    });
+    d.addEventListener('wheel', e=>{
+      if(!this.enabled) return; e.preventDefault();
+      this._zoom *= 1 + Math.max(-0.3, Math.min(0.3, e.deltaY*0.0015));
+    }, {passive:false});
+    d.addEventListener('touchstart', e=>{
+      if(e.touches.length===2) this._pinch=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    }, {passive:true});
+    d.addEventListener('touchmove', e=>{
+      if(e.touches.length===2 && this._pinch){
+        const d2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                            e.touches[0].clientY-e.touches[1].clientY);
+        this._zoom *= this._pinch/d2; this._pinch=d2;
+      }
+    }, {passive:true});
+    d.addEventListener('touchend', ()=>{ this._pinch=0; }, {passive:true});
+  }
+  update(dt){
+    if(!this.enabled) return;
+    const off = this.camera.position.clone().sub(this.target);
+    if(off.lengthSq()<1e-4) off.set(0,60,400);
+    const s = new THREE.Spherical().setFromVector3(off);
+    if(this.autoRotate) s.theta -= this.autoRotateSpeed*(dt||0.016);
+    s.theta += this._dTheta; s.phi += this._dPhi;
+    s.radius *= this._zoom; this._zoom = 1;
+    s.phi = Math.max(0.05, Math.min(this.maxPolarAngle, s.phi));
+    s.radius = Math.max(this.minDistance, Math.min(this.maxDistance, s.radius));
+    this._dTheta *= this.dampingFactor; this._dPhi *= this.dampingFactor;
+    if(Math.abs(this._dTheta)<1e-5) this._dTheta=0;
+    if(Math.abs(this._dPhi)<1e-5) this._dPhi=0;
+    this.camera.position.copy(new THREE.Vector3().setFromSpherical(s).add(this.target));
+    this.camera.lookAt(this.target);
+  }
+}
+
+const PAYLOAD = document.getElementById('payload').textContent.trim();
+const STLDATA = document.getElementById('stl').textContent.trim();
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+function b64(s){
+  const bin = atob(s), n = bin.length, u8 = new Uint8Array(n);
+  for (let i=0;i<n;i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+async function gunzip(u8){
+  if (typeof DecompressionStream === 'undefined') throw new Error('DecompressionStream nicht verfügbar');
+  const ds = new DecompressionStream('gzip');
+  const out = new Blob([u8]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(out).arrayBuffer());
+}
+const f32 = s => new Float32Array(b64(s).buffer);
+const u32 = s => new Uint32Array(b64(s).buffer);
+const u8a = s => b64(s);
+
+function setProgress(p, txt){
+  $('#progress').style.width = (p*100).toFixed(0)+'%';
+  if (txt) $('#loadTxt').textContent = txt;
+}
+
+/* ---------- Sky ---------- */
+const SKY_VS = `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+const SKY_FS = `varying vec3 vP;
+  void main(){
+    float h = normalize(vP).y;
+    vec3 top = vec3(0.36,0.52,0.70);
+    vec3 mid = vec3(0.66,0.75,0.83);
+    vec3 bot = vec3(0.87,0.83,0.76);
+    vec3 c = h > 0.0 ? mix(mid, top, pow(h,0.75)) : mix(mid, bot, pow(-h,0.6));
+    gl_FragColor = vec4(c,1.0);
+  }`;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xc9d6e2, 1300, 4200);
+
+const camera = new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.4, 9000);
+const q = new URLSearchParams(location.search);
+const LOW = q.has('low');
+const renderer = new THREE.WebGLRenderer({canvas: $('#c'), antialias:!LOW});
+renderer.setPixelRatio(LOW ? 1 : Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const sky = new THREE.Mesh(new THREE.SphereGeometry(6000, 32, 16),
+  new THREE.ShaderMaterial({vertexShader:SKY_VS, fragmentShader:SKY_FS, side:THREE.BackSide, depthWrite:false, fog:false}));
+scene.add(sky);
+
+const hemi = new THREE.HemisphereLight(0xd6e6f5, 0x77664c, 1.25);
+const fill = new THREE.DirectionalLight(0xcfe0f2, 0.55);
+fill.position.set(620, 420, -520);
+scene.add(fill);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.25);
+sun.position.set(-720, 820, 520);
+sun.castShadow = false;
+sun.shadow.mapSize.set(2048, 2048);
+const sc = sun.shadow.camera;
+sc.left=-430; sc.right=430; sc.top=430; sc.bottom=-430; sc.near=120; sc.far=1900;
+sun.shadow.bias = -0.00035; sun.shadow.normalBias = 1.2;
+scene.add(sun, sun.target);
+sun.target.position.set(0,0,0);
+
+const controls = new SimpleOrbit(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxPolarAngle = Math.PI*0.495;
+controls.minDistance = 40;
+controls.maxDistance = 2600;
+controls.autoRotateSpeed = 0.28;
+
+/* ---------- Texturen ---------- */
+function facadeTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;  // 6 m x 6 m
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0,0,256,256);
+  // Putzstruktur
+  for (let i=0;i<3400;i++){
+    const v = 232 + Math.random()*23;
+    x.fillStyle = `rgb(${v},${v},${v})`;
+    x.fillRect(Math.random()*256, Math.random()*256, 1.6, 1.6);
+  }
+  // Gesims / Stockwerkstrennlinie
+  x.fillStyle = 'rgba(210,205,195,.85)'; x.fillRect(0,126,256,5);
+  x.fillStyle = 'rgba(120,115,105,.18)'; x.fillRect(0,131,256,2);
+  // Sockel
+  x.fillStyle = 'rgba(105,100,92,.42)'; x.fillRect(0,246,256,10);
+  // Fenster: 2 je Etage, 1.15 m x 1.45 m
+  for (let row=0; row<2; row++){
+    for (let col=0; col<2; col++){
+      const w=46, h=58, ox=col*128+41, oy=row*128+40;
+      x.fillStyle='rgba(255,255,252,.95)'; x.fillRect(ox-5, oy-5, w+10, h+10);  // Gewände
+      x.fillStyle='#66727d'; x.fillRect(ox, oy, w, h);
+      const g = x.createLinearGradient(ox,oy,ox+w,oy+h);
+      g.addColorStop(0,'rgba(196,218,236,.75)'); g.addColorStop(.45,'rgba(120,150,176,.25)');
+      g.addColorStop(1,'rgba(214,232,246,.55)');
+      x.fillStyle=g; x.fillRect(ox,oy,w,h);
+      x.strokeStyle='rgba(252,252,248,.95)'; x.lineWidth=2.5;
+      x.beginPath();
+      x.moveTo(ox+w/2,oy); x.lineTo(ox+w/2,oy+h);
+      x.moveTo(ox,oy+h*0.45); x.lineTo(ox+w,oy+h*0.45);
+      x.stroke();
+      x.fillStyle='rgba(250,250,244,.95)'; x.fillRect(ox-7, oy+h+5, w+14, 4);  // Sohlbank
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+function groundTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;  // 10 m
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0,0,256,256);
+  for (let i=0;i<9000;i++){
+    const v = 226 + Math.random()*28;
+    x.fillStyle = `rgba(${v},${v},${v},.55)`;
+    x.fillRect(Math.random()*256, Math.random()*256, 2.2, 2.2);
+  }
+  // Pflasterfugen
+  x.strokeStyle = 'rgba(150,148,142,.35)'; x.lineWidth = 1;
+  for (let i=0;i<=256;i+=25){
+    x.beginPath(); x.moveTo(i,0); x.lineTo(i,256); x.stroke();
+    x.beginPath(); x.moveTo(0,i); x.lineTo(256,i); x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+/* ---------- Daten ---------- */
+let DATA = null, world = null, landmarks = [], labels = [];
+let mode = 'orbit', ready = false;
+
+function geoOf(g){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(f32(g.p), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(f32(g.uv), 2));
+  geo.setAttribute('color', new THREE.BufferAttribute(u8a(g.c), 3, true));
+  const idx = u32(g.i);
+  // Spiegelung y->-z kehrt die Wicklung um: Dreiecke tauschen
+  for (let i=0;i<idx.length;i+=3){ const t=idx[i+1]; idx[i+1]=idx[i+2]; idx[i+2]=t; }
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+async function init(){
+  setProgress(.05, 'Daten entpacken …');
+  const raw = await gunzip(b64(PAYLOAD));
+  setProgress(.35, 'Geometrie aufbauen …');
+  DATA = JSON.parse(new TextDecoder().decode(raw));
+
+  const wallTex = facadeTexture();
+  const wallMat = new THREE.MeshStandardMaterial({map:wallTex, vertexColors:true, roughness:.88,
+    metalness:0, flatShading:true});
+  const roofMat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:.95, metalness:0,
+    flatShading:true});
+  const groundMat = new THREE.MeshStandardMaterial({vertexColors:true, map:groundTexture(), roughness:1, metalness:0,
+    side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1});
+
+  world = new THREE.Group(); scene.add(world);
+
+  const walls = new THREE.Mesh(geoOf(DATA.walls), wallMat);
+  walls.castShadow = walls.receiveShadow = true;
+  world.add(walls);
+  const roofs = new THREE.Mesh(geoOf(DATA.roofs), roofMat);
+  roofs.castShadow = roofs.receiveShadow = true;
+  world.add(roofs);
+  const props = new THREE.Mesh(geoOf(DATA.props), roofMat);
+  props.castShadow = props.receiveShadow = true;
+  world.add(props);
+  const ground = new THREE.Mesh(geoOf(DATA.ground), groundMat);
+  ground.receiveShadow = true;
+  world.add(ground);
+
+  // Sockelplatte
+  const b = DATA.meta.bbox;
+  const pw = b[2]-b[0], ph = b[3]-b[1];
+  const plateMat = new THREE.MeshStandardMaterial({color:0x8b887d, roughness:1});
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(pw+24, 8, ph+24), plateMat);
+  plate.position.set((b[0]+b[2])/2, -4.05, -(b[1]+b[3])/2);
+  plate.receiveShadow = true;
+  world.add(plate);
+
+  // weite Ebene außerhalb
+  const far = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000),
+    new THREE.MeshStandardMaterial({color:0x8f8c81, roughness:1}));
+  far.rotation.x = -Math.PI/2; far.position.y = -0.35; far.receiveShadow = false;
+  world.add(far);
+
+  buildLandmarks();
+  buildMinimap();
+
+  setProgress(.9, 'Fertig …');
+  camera.position.set(250, 540, 660);
+  controls.target.set(0, 10, 10);
+  controls.update();
+  camera.lookAt(controls.target);
+  setTimeout(()=>{ $('#load').classList.add('done'); }, 260);
+  ready = true;
+
+}
+
+/* ---------- Landmarken ---------- */
+function labelSprite(text, sub){
+  const pad = 14, fs = 34, w = 512, h = 128;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(12,18,24,.78)';
+  const r = 26;
+  x.beginPath();
+  x.roundRect(2,2,w-4,h-4,r); x.fill();
+  x.strokeStyle='rgba(226,176,74,.85)'; x.lineWidth=3; x.stroke();
+  x.fillStyle='#f2f6fa'; x.font='600 38px Inter, system-ui, sans-serif'; x.textAlign='center';
+  x.fillText(text, w/2, sub? 56 : 78);
+  if (sub){ x.fillStyle='#e2b04a'; x.font='500 26px Inter, system-ui'; x.fillText(sub, w/2, 96); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.SpriteMaterial({map:t, transparent:true, depthTest:false, depthWrite:false});
+  const s = new THREE.Sprite(m);
+  s.scale.set(96, 24, 1);
+  s.renderOrder = 999;
+  return s;
+}
+
+function buildLandmarks(){
+  const list = $('#lmlist');
+  DATA.landmarks.forEach((L, i)=>{
+    const [name, x, z, h] = L;
+    const p = new THREE.Vector3(x, Math.min(h*0.95, h)+12, -z);
+    const sp = labelSprite(shortName(name), h>40 ? Math.round(h)+' m' : '');
+    sp.position.copy(p);
+    sp.userData.idx = i;
+    sp.visible = mode !== 'walk';
+    scene.add(sp);
+    labels.push(sp);
+    landmarks.push({name, x, z, h, sprite:sp});
+
+    const el = document.createElement('div');
+    el.className = 'lm';
+    el.innerHTML = `<span class="ic"></span><span class="tx"><b>${name}</b><i>${h>40?Math.round(h)+' m hoch':''}</i></span>`;
+    el.onclick = ()=>{ $('#panel').classList.remove('open'); showInfo(i); flyTo(i); };
+    list.appendChild(el);
+  });
+}
+function shortName(n){
+  return n.replace('Stadtkirche St. Marien','Stadtkirche')
+          .replace('Schloss Wittenberg','Schloss')
+          .replace('Schlosskirche','Schlosskirche')
+          .replace('Melanchthonhaus','Melanchthonhaus')
+          .replace('Leucorea / Alte Universität','Leucorea');
+}
+
+/* ---------- Info ---------- */
+let infoIdx = -1;
+function showInfo(i){
+  const L = landmarks[i]; if (!L) return;
+  const inf = (DATA.info||[]).find(t=>t[0]===L.name);
+  infoIdx = i;
+  $('#infoH').textContent = inf ? inf[1] : L.name;
+  $('#infoM').textContent = (inf && inf[2] ? 'Höhe ca. '+Math.round(inf[2])+' m · ' : '') + 'Lutherstadt Wittenberg';
+  $('#infoP').textContent = inf ? inf[3] : '';
+  $('#info').classList.add('show');
+}
+$('#infoX').onclick = $('#infoClose').onclick = ()=> $('#info').classList.remove('show');
+$('#infoGo').onclick = ()=>{ if (infoIdx>=0) flyTo(infoIdx); };
+
+/* ---------- Fliegen ---------- */
+let fly = null;
+function flyTo(i){
+  const L = landmarks[i]; if (!L) return;
+  if (mode === 'walk'){ setMode('orbit'); }
+  const target = new THREE.Vector3(L.x, Math.min(L.h,45)*0.5, -L.z);
+  const dir = new THREE.Vector3(Math.cos(i*1.7), 0, Math.sin(i*1.7)).normalize();
+  const dist = Math.max(120, Math.min(260, L.h*2.2));
+  const camPos = target.clone().add(dir.multiplyScalar(dist)).add(new THREE.Vector3(0, dist*0.62, 0));
+  fly = {t:0, p0:camera.position.clone(), p1:camPos, t0:controls.target.clone(), t1:target};
+}
+function stepFly(dt){
+  if (!fly) return;
+  fly.t = Math.min(1, fly.t + dt*0.85);
+  const e = fly.t<.5 ? 2*fly.t*fly.t : 1-Math.pow(-2*fly.t+2,2)/2;
+  camera.position.lerpVectors(fly.p0, fly.p1, e);
+  controls.target.lerpVectors(fly.t0, fly.t1, e);
+  if (fly.t>=1) fly = null;
+}
+
+/* ---------- Modi ---------- */
+const keys = {};
+addEventListener('keydown', e=>{ keys[e.code]=true; if(e.code==='Escape'){ if(mode==='walk') exitWalk(); } });
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+function setMode(m){
+  mode = m;
+  document.body.classList.toggle('walk', m==='walk');
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
+  labels.forEach(s=> s.visible = (m!=='walk'));
+  if (m==='walk'){
+    controls.autoRotate = false;
+    controls.enabled = false;
+    const s = DATA.start;
+    player.pos.set(s[0], 0, -s[1]);
+    player.yaw = s[2]; player.pitch = 0;
+    camera.position.set(s[0], EYE, -s[1]);
+    camera.rotation.set(0,0,0);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = player.yaw;
+    $('#hint').innerHTML = '<b>Street View:</b> WASD / Pfeiltasten = gehen · Maus = umsehen · Shift = rennen · ESC = beenden';
+    if (isTouch) document.body.classList.add('touch');
+  } else {
+    controls.enabled = true;
+    document.body.classList.remove('touch');
+    camera.position.set(250, 540, 660);
+    controls.target.set(0, 10, 10);
+    $('#hint').innerHTML = '<b>Rundflug:</b> ziehen = drehen · Scrollen = zoomen · Denkmal anklicken = Info';
+  }
+}
+document.querySelectorAll('[data-mode]').forEach(b=> b.onclick = ()=> setMode(b.dataset.mode));
+$('#lmBtn').onclick = ()=> $('#panel').classList.toggle('open');
+$('#aboutBtn').onclick = ()=>{ $('#about').classList.add('open'); $('#panel').classList.remove('open'); };
+$('#aboutX').onclick = ()=> $('#about').classList.remove('open');
+
+/* ---------- Walk ---------- */
+const EYE = 1.72;
+const player = {pos:new THREE.Vector3(), yaw:0, pitch:0, vel:new THREE.Vector3(), bob:0};
+const isTouch = matchMedia('(pointer:coarse)').matches;
+let locked = false;
+
+renderer.domElement.addEventListener('click', ()=>{
+  if (mode==='walk' && !isTouch && !locked) renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', ()=>{ locked = document.pointerLockElement === renderer.domElement; });
+document.addEventListener('mousemove', e=>{
+  if (!locked || mode!=='walk') return;
+  player.yaw -= e.movementX * 0.0022;
+  player.pitch = Math.max(-1.15, Math.min(1.05, player.pitch - e.movementY * 0.0022));
+});
+function exitWalk(){ if (document.pointerLockElement) document.exitPointerLock(); setMode('orbit'); }
+
+/* ---- Kollision ---- */
+let grid = null, CELL = 24;
+function buildGrid(){
+  grid = new Map();
+  const P = DATA.polys;
+  const pts = f32(P.p); const ends = u32(P.e);
+  let s = 0;
+  for (let i=0;i<ends.length;i++){
+    const e = ends[i]; const ring = pts.subarray(s*2, e*2); s = e;
+    let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+    for (let k=0;k<ring.length;k+=2){
+      minx=Math.min(minx,ring[k]); maxx=Math.max(maxx,ring[k]);
+      miny=Math.min(miny,ring[k+1]); maxy=Math.max(maxy,ring[k+1]);
+    }
+    const i0=Math.floor(minx/CELL), i1=Math.floor(maxx/CELL), j0=Math.floor(miny/CELL), j1=Math.floor(maxy/CELL);
+    for (let ix=i0;ix<=i1;ix++) for (let iy=j0;iy<=j1;iy++){
+      const k = ix+','+iy;
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push(ring);
+    }
+  }
+}
+function inRing(ring, x, y){
+  let inside = false;
+  for (let i=0, j=ring.length-2; i<ring.length; j=i, i+=2){
+    const xi=ring[i], yi=ring[i+1], xj=ring[j], yj=ring[j+1];
+    if (((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside = !inside;
+  }
+  return inside;
+}
+const R = 0.55;
+function blocked(x, y){
+  const k = Math.floor(x/CELL)+','+Math.floor(y/CELL);
+  const rings = grid.get(k); if (!rings) return false;
+  for (const ring of rings){
+    if (inRing(ring, x, y)) return true;
+    // Abstand zur Kante
+    for (let i=0;i<ring.length;i+=2){
+      const j = (i+2) % ring.length;
+      const ax=ring[i], ay=ring[i+1], bx=ring[j], by=ring[j+1];
+      const dx=bx-ax, dy=by-ay;
+      const L2 = dx*dx+dy*dy || 1;
+      let t = ((x-ax)*dx+(y-ay)*dy)/L2; t = Math.max(0, Math.min(1, t));
+      const px = ax+t*dx, py = ay+t*dy;
+      if ((px-x)**2+(py-y)**2 < R*R) return true;
+    }
+  }
+  return false;
+}
+
+function stepWalk(dt){
+  const speed = (keys.ShiftLeft||keys.ShiftRight) ? 9.5 : 3.4;
+  let f = (keys.KeyW||keys.ArrowUp?1:0) - (keys.KeyS||keys.ArrowDown?1:0);
+  let s = (keys.KeyD||keys.ArrowRight?1:0) - (keys.KeyA||keys.ArrowLeft?1:0);
+  if (joy.active){ f += -joy.y; s += joy.x; }
+  const len = Math.hypot(f,s);
+  if (len>1){ f/=len; s/=len; }
+  const sinY = Math.sin(player.yaw), cosY = Math.cos(player.yaw);
+  // vorwärts = -Z lokal
+  const dx = (-sinY*f + cosY*s) * speed * dt;
+  const dz = (-cosY*f - sinY*s) * speed * dt;
+  const nx = player.pos.x + dx, nz = player.pos.z + dz;
+  if (!blocked(nx, -nz)) { player.pos.x = nx; player.pos.z = nz; }
+  else if (!blocked(nx, -player.pos.z)) player.pos.x = nx;
+  else if (!blocked(player.pos.x, -nz)) player.pos.z = nz;
+
+  const moving = Math.abs(dx)+Math.abs(dz) > 1e-4;
+  player.bob += dt * (moving ? (speed>5?13:9) : 0);
+  const bobY = Math.sin(player.bob) * (moving?0.045:0);
+  camera.position.set(player.pos.x, EYE + bobY, player.pos.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = player.yaw;
+  camera.rotation.x = player.pitch;
+  camera.rotation.z = Math.sin(player.bob*0.5)*(moving?0.004:0);
+}
+
+/* ---------- Touch ---------- */
+const joy = {active:false, x:0, y:0, id:null};
+const joyEl = $('#joy'), knob = $('#knob');
+if (isTouch){
+  const look = {id:null, x:0, y:0};
+  renderer.domElement.addEventListener('touchstart', e=>{
+    for (const t of e.changedTouches){
+      if (t.clientX < innerWidth*0.45 && mode==='walk'){
+        joy.active = true; joy.id = t.identifier; moveJoy(t);
+      } else { look.id = t.identifier; look.x = t.clientX; look.y = t.clientY; }
+    }
+  }, {passive:true});
+  renderer.domElement.addEventListener('touchmove', e=>{
+    for (const t of e.changedTouches){
+      if (t.identifier === joy.id) moveJoy(t);
+      else if (t.identifier === look.id){
+        player.yaw -= (t.clientX - look.x)*0.005;
+        player.pitch = Math.max(-1.1, Math.min(1.0, player.pitch - (t.clientY-look.y)*0.005));
+        look.x = t.clientX; look.y = t.clientY;
+      }
+    }
+  }, {passive:true});
+  renderer.domElement.addEventListener('touchend', e=>{
+    for (const t of e.changedTouches){
+      if (t.identifier === joy.id){ joy.active=false; joy.id=null; joy.x=joy.y=0; knob.style.transform='translate(0,0)'; }
+      if (t.identifier === look.id) look.id = null;
+    }
+  });
+  function moveJoy(t){
+    const r = joyEl.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    let dx = t.clientX-cx, dy = t.clientY-cy;
+    const m = Math.hypot(dx,dy), max = r.width*0.36;
+    if (m>max){ dx*=max/m; dy*=max/m; }
+    joy.x = dx/max; joy.y = dy/max;
+    knob.style.transform = `translate(${dx}px,${dy}px)`;
+  }
+}
+
+/* ---------- Minimap ---------- */
+let mmCtx, mmScale, mmW, mmH, mmCX=0, mmCY=0;
+function buildMinimap(){
+  const cv = $('#mm'); mmCtx = cv.getContext('2d');
+  mmW = cv.width; mmH = cv.height;
+  const b = DATA.meta.bbox;
+  mmCX = (b[0]+b[2])/2; mmCY = (b[1]+b[3])/2;
+  mmScale = Math.min(mmW/(b[2]-b[0]), mmH/(b[3]-b[1]))*0.94;
+  const pts = f32(DATA.polys.p), ends = u32(DATA.polys.e);
+  mmCtx.clearRect(0,0,mmW,mmH);
+  mmCtx.fillStyle = 'rgba(150,175,195,.55)';
+  let s = 0;
+  for (let i=0;i<ends.length;i++){
+    const e = ends[i];
+    mmCtx.beginPath();
+    for (let k=s;k<e;k++){
+      const x = mmW/2 + (pts[k*2]-mmCX)*mmScale;
+      const y = mmH/2 - (pts[k*2+1]-mmCY)*mmScale;
+      k===s ? mmCtx.moveTo(x,y) : mmCtx.lineTo(x,y);
+    }
+    mmCtx.closePath(); mmCtx.fill();
+    s = e;
+  }
+  // Landmarken
+  mmCtx.fillStyle = '#e2b04a';
+  DATA.landmarks.forEach(L=>{
+    const x = mmW/2 + (L[1]-mmCX)*mmScale, y = mmH/2 - (L[2]-mmCY)*mmScale;
+    mmCtx.beginPath(); mmCtx.arc(x,y,3.2,0,7); mmCtx.fill();
+  });
+  mmStatic = mmCtx.getImageData(0,0,mmW,mmH);
+}
+let mmStatic = null;
+function drawMinimap(){
+  if (!mmCtx) return;
+  mmCtx.putImageData(mmStatic,0,0);
+  if (mode==='walk'){
+    const x = mmW/2 + (camera.position.x-mmCX)*mmScale;
+    const y = mmH/2 - (-camera.position.z-mmCY)*mmScale;
+    mmCtx.save();
+    mmCtx.translate(x,y);
+    const a = Math.atan2(Math.sin(player.yaw), -Math.cos(player.yaw));
+    mmCtx.rotate(-a);
+    mmCtx.fillStyle = '#ff5b4a';
+    mmCtx.beginPath(); mmCtx.moveTo(0,-9); mmCtx.lineTo(6,7); mmCtx.lineTo(-6,7); mmCtx.closePath(); mmCtx.fill();
+    mmCtx.restore();
+  }
+}
+$('#map').addEventListener('click', e=>{
+  const r = $('#map').getBoundingClientRect();
+  const px = (e.clientX-r.left)/r.width*mmW, py = (e.clientY-r.top)/r.height*mmH;
+  const x = (px-mmW/2)/mmScale + mmCX, z = -((py-mmH/2)/mmScale - mmCY);
+  if (mode==='walk'){ player.pos.set(x,0,z); }
+  else { controls.target.set(x,0,z); }
+});
+
+/* ---------- Rundgang ---------- */
+let tour = null;
+function startTour(){
+  if (mode!=='walk'){ setMode('walk'); }
+  const pts = DATA.tour.map(p=>new THREE.Vector3(p[0], 19.0, -p[1]));
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02);
+  tour = {curve, len:curve.getLength(), t:0, speed:3.0};
+  $('#tourbar').classList.add('show');
+  player.pos.copy(pts[0]);
+}
+$('#tourBtn').onclick = startTour;
+$('#tourStop').onclick = ()=>{ tour = null; $('#tourbar').classList.remove('show'); };
+function stepTour(dt){
+  if (!tour) return;
+  tour.t += (tour.speed*dt)/tour.len;
+  if (tour.t >= 1){ tour=null; $('#tourbar').classList.remove('show'); return; }
+  $('#tourprog').style.width = (tour.t*100).toFixed(1)+'%';
+  const p = tour.curve.getPointAt(Math.min(tour.t,1));
+  const q = tour.curve.getPointAt(Math.min(tour.t+0.020,1));
+  player.pos.set(p.x, 0, p.z);
+  camera.position.copy(p);
+  camera.lookAt(q.x, p.y-5.5, q.z);
+  player.yaw = Math.atan2(-(q.x-p.x), -(q.z-p.z));
+}
+
+/* ---------- Picking ---------- */
+const ray = new THREE.Raycaster();
+renderer.domElement.addEventListener('pointerdown', e=>{
+  if (e.pointerType==='touch') return;
+  const m = new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1);
+  ray.setFromCamera(m, camera);
+  const hit = ray.intersectObjects(labels, false);
+  if (hit.length) showInfo(hit[0].object.userData.idx);
+});
+
+/* ---------- STL ---------- */
+let stlUrl = null;
+$('#stlBtn').onclick = async ()=>{
+  if (!stlUrl){
+    $('#stlBtn').textContent = '…';
+    const u8 = await gunzip(b64(STLDATA));
+    stlUrl = URL.createObjectURL(new Blob([u8], {type:'model/stl'}));
+    $('#stlBtn').textContent = 'STL ↓';
+  }
+  const a = document.createElement('a');
+  a.href = stlUrl; a.download = 'wittenberg_innenstadt.stl'; a.click();
+};
+
+/* ---------- Loop ---------- */
+function isDragging(){ return controls._ptr !== null; }
+let fCount = 0, fAcc = 0, fDecided = false;
+function enableShadows(){
+  if (LOW || renderer.shadowMap.enabled) return;
+  renderer.shadowMap.enabled = true;
+  sun.castShadow = true;
+  scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } });
+}
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.12);
+  if (!fDecided){ fCount++; fAcc += dt;
+    if (fCount === 50){ fDecided = true;
+      const avg = fAcc/fCount;
+      if (q.has('shadows')) { if (q.get('shadows') !== '0') enableShadows(); }
+      else if (avg < 0.022) enableShadows();
+    }
+  }
+  if (!ready) { renderer.render(scene, camera); return; }
+  if (mode!=='walk'){
+    const cp = camera.position;
+    for (const sp of labels){
+      const d = sp.position.distanceTo(cp);
+      const w = Math.max(16, Math.min(130, d*0.10));
+      sp.scale.set(w, w*0.26, 1);
+      sp.visible = d > 55 && d < 1300;
+    }
+  }
+  if (window.__freeze) { renderer.render(scene, camera); return; }
+  if (mode==='walk'){
+    if (tour) stepTour(dt); else stepWalk(dt);
+  } else {
+    controls.autoRotate = !fly && !isDragging();
+    stepFly(dt);
+    controls.update(dt);
+  }
+  if (renderer.shadowMap.enabled){
+    const c = mode==='walk' ? camera.position : controls.target;
+    sun.target.position.set(c.x, 0, c.z);
+    sun.position.set(c.x-420, 560, c.z+300);
+    sun.target.updateMatrixWorld();
+  }
+  drawMinimap();
+  renderer.render(scene, camera);
+}
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+window.__dbg = {get scene(){return scene}, get camera(){return camera}, get controls(){return controls},
+  get renderer(){return renderer}, get sun(){return sun}, enableShadows,
+  get labels(){return labels}, get world(){return world}, flyTo:(i)=>{flyTo(i)}, mode:()=>mode, setMode,
+  setCam:(p,t,look)=>{ window.__freeze=true; camera.position.set(p[0],p[1],p[2]);
+    if (t) controls.target.set(t[0],t[1],t[2]); camera.lookAt(new THREE.Vector3(...(look||t||[0,0,0]))); },
+  unfreeze:()=>{ window.__freeze=false }};
+init().then(()=>{ buildGrid(); tick(); }).catch(err=>{
+  $('#loadTxt').textContent = 'Fehler: '+err.message;
+  console.error(err);
+});
+document.addEventListener('contextmenu', e=>e.preventDefault());
+</script>
+</body>
+</html>
